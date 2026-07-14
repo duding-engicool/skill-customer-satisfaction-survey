@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 客户质量满意度调查生成与分析器
-读入结构化调查 JSON，生成 Markdown + 网页版 HTML（主色 #C8102E）。
-同时产出"问卷卷首 + 量化分析报告"双版文档。
+读入结构化调查 JSON，生成纯文字版 (.txt) + Markdown (.md) 双件文档。
+同时产出"问卷卷首 + 量化分析报告"。
 
 用法：
-  python build_report.py --input survey.json --md-out 客户满意度调查.md --html-out 客户满意度调查.html
-  python build_report.py                                 # 内置小样本，直接产出示意双版
+  python build_report.py --input survey.json --out-dir ./输出
+  python build_report.py                                 # 内置小样本，直接产出示意双件
 
 输入 JSON 结构：
 {
@@ -35,15 +35,9 @@
 
 import argparse
 import json
+import os
 import sys
-import html
 from datetime import datetime
-
-PRIMARY = "#C8102E"
-
-
-def esc(s):
-    return html.escape(str(s), quote=True)
 
 
 def load_survey(path):
@@ -114,83 +108,63 @@ def build_md(sv):
     return "\n".join(L)
 
 
-CSS = f"""
-:root{{--primary:{PRIMARY};--bg:#fafafa;--card:#ffffff;--ink:#1f2937;--muted:#6b7280;}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
-  background:var(--bg);color:var(--ink);line-height:1.75;padding:32px}}
-.wrap{{max-width:1000px;margin:0 auto}}
-header{{text-align:center;padding:26px 0 16px;border-bottom:3px solid var(--primary);margin-bottom:26px}}
-header h1{{font-size:27px}}
-header .meta{{color:var(--muted);font-size:14px;margin-top:10px}}
-.sec{{background:var(--card);border-radius:14px;padding:22px 26px;box-shadow:0 4px 16px rgba(0,0,0,.05);margin-bottom:20px}}
-.sec h2{{font-size:20px;margin-bottom:12px;border-left:5px solid var(--primary);padding-left:12px}}
-.sec h3{{font-size:16px;margin:12px 0 6px;color:var(--primary)}}
-.sec p,.sec li{{font-size:15px;margin:4px 0}}
-.nps{{display:flex;gap:16px;margin:12px 0}}
-.nps .box{{flex:1;text-align:center;border-radius:12px;padding:14px;background:#f1f5f9}}
-.nps .big{{font-size:30px;font-weight:800;color:var(--primary)}}
-table{{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}}
-th,td{{border:1px solid #e5e7eb;padding:9px 12px;text-align:left}}
-th{{background:var(--primary);color:#fff}}
-.pend{{background:#fff7f8;border:1px dashed var(--primary);border-radius:12px;padding:16px 22px}}
-.pend h2{{color:var(--primary);border:none;padding:0;margin-bottom:8px}}
-footer{{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}}
-"""
-
-
-def build_html(sv):
+def build_txt(sv):
     an = sv.get("analysis", {})
     nps = an.get("nps", {})
     nps_val, prom_pct, det_pct = compute_nps(nps)
-    dims_html = ""
-    for dim in (sv.get("survey", {}).get("dimensions", []) or []):
-        items = "\n".join(f"<li>{esc(it)} 〔{esc(sv.get('survey',{}).get('scale','1-5'))}分制〕</li>" for it in (dim.get("items", []) or []))
-        dims_html += f"<p><b>{esc(dim.get('name',''))}</b></p><ul>{items}</ul>"
-    opens = "\n".join(f"<li>{esc(oq)}</li>" for oq in (sv.get("survey", {}).get("open_questions", []) or []))
-    score_rows = "\n".join(
-        f"<tr><td>{esc(ds.get('name',''))}</td><td>{esc(ds.get('score',''))}</td><td>{esc(ds.get('outof',''))}</td></tr>"
-        for ds in (an.get("dimension_scores", []) or [])
-    )
-    findings = "\n".join(f"<li>{esc(k)}</li>" for k in (an.get("key_findings", []) or ["（待企业补充）"]))
-    actions = "\n".join(f"<li>{esc(a)}</li>" for a in (an.get("actions", []) or ["（待企业补充）"]))
+    sep = "=" * 48
+    sub = "-" * 48
+    L = []
+    L.append(sep)
+    L.append(sv.get("project", "客户质量满意度调查"))
+    L.append(sep)
+    L.append(f"责任部门：{sv.get('owner','')}")
+    L.append(f"调查目标：{('；'.join(sv.get('objectives',[])) or '（待企业补充）')}")
+    L.append(f"量表：{sv.get('survey',{}).get('scale','1-5')}")
+    L.append("")
+    L.append("第一部分：调查问卷")
+    L.append(sub)
+    L.append("一、满意度维度题（CSAT）")
+    for dim in sv.get("survey", {}).get("dimensions", []) or []:
+        L.append(f"【{dim.get('name','')}】")
+        for it in dim.get("items", []) or []:
+            L.append(f"  - {it} 〔{sv.get('survey',{}).get('scale','1-5')}分制〕")
+    L.append("")
+    L.append(f"二、NPS 推荐意愿题：{sv.get('survey',{}).get('nps_question','推荐意愿(0-10)')}")
+    L.append(f"三、CES 费力度题：{sv.get('survey',{}).get('ces_question','费力度')}")
+    L.append("四、开放题：")
+    for oq in sv.get("survey", {}).get("open_questions", []) or []:
+        L.append(f"  - {oq}")
+    L.append("")
+    L.append("第二部分：分析报告")
+    L.append(sub)
+    L.append(f"有效样本：{an.get('respondents','（待企业补充）')}")
+    L.append(f"NPS（净推荐值）：{nps_val}（推荐者 {prom_pct}% / 贬损者 {det_pct}%）")
+    L.append("")
+    L.append("维度得分：")
+    for ds in an.get("dimension_scores", []) or []:
+        L.append(f"  - {ds.get('name','')}：{ds.get('score','')} / {ds.get('outof','')}")
+    L.append("")
+    L.append(f"趋势：{an.get('trend','（待企业补充）')}")
+    L.append("")
+    L.append("关键发现：")
+    kfs = an.get("key_findings", []) or ["（待企业补充）"]
+    for k in kfs:
+        L.append(f"  - {k}")
+    L.append("")
+    L.append("行动建议：")
+    acts = an.get("actions", []) or ["（待企业补充）"]
+    for a in acts:
+        L.append(f"  - {a}")
     pend = sv.get("pending", [])
-    pend_html = ""
     if pend:
-        items = "\n".join(f"<li>〔待企业补充〕{esc(x)}</li>" for x in pend)
-        pend_html = f"<div class='pend'><h2>待企业补充项</h2><ul>{items}</ul></div>"
-    return f"""<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{esc(sv.get('project','客户质量满意度调查'))}</title>
-<style>{CSS}</style></head>
-<body><div class="wrap">
-<header>
-  <h1>{esc(sv.get('project','客户质量满意度调查'))}</h1>
-  <div class="meta">责任部门：{esc(sv.get('owner',''))} ｜ 生成：{datetime.now().strftime('%Y-%m-%d')}</div>
-</header>
-<section class="sec"><h2>第一部分：调查问卷</h2>
-<h3>一、满意度维度题（CSAT）</h3>{dims_html}
-<h3>二、NPS 推荐意愿题</h3><p>{esc(sv.get('survey',{}).get('nps_question','推荐意愿(0-10)'))}</p>
-<h3>三、CES 费力度题</h3><p>{esc(sv.get('survey',{}).get('ces_question','费力度'))}</p>
-<h3>四、开放题</h3><ul>{opens}</ul>
-</section>
-<section class="sec"><h2>第二部分：分析报告</h2>
-<p>有效样本：{esc(an.get('respondents','（待企业补充）'))}</p>
-<div class="nps">
-  <div class="box"><div class="big">{nps_val}</div><div>NPS 净推荐值</div></div>
-  <div class="box"><div class="big">{prom_pct}%</div><div>推荐者</div></div>
-  <div class="box"><div class="big">{det_pct}%</div><div>贬损者</div></div>
-</div>
-<h3>维度得分</h3>
-<table><thead><tr><th>维度</th><th>得分</th><th>量表上限</th></tr></thead><tbody>{score_rows}</tbody></table>
-<h3>趋势</h3><p>{esc(an.get('trend','（待企业补充）'))}</p>
-<h3>关键发现</h3><ul>{findings}</ul>
-<h3>行动建议</h3><ul>{actions}</ul>
-</section>
-{pend_html}
-<footer>本报告由客户质量满意度调查技能生成 · {datetime.now().strftime('%Y-%m-%d %H:%M')}</footer>
-</div></body></html>"""
+        L.append("")
+        L.append("待企业补充项：")
+        for x in pend:
+            L.append(f"  - 〔待企业补充〕{x}")
+    L.append("")
+    L.append(f"本报告由客户质量满意度调查技能生成 · {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    return "\n".join(L)
 
 
 SAMPLE_SURVEY = {
@@ -241,10 +215,10 @@ SAMPLE_SURVEY = {
 
 
 def main():
-    ap = argparse.ArgumentParser(description="客户质量满意度调查生成与分析器")
+    ap = argparse.ArgumentParser(description="客户质量满意度调查生成与分析器（txt+md）")
     ap.add_argument("--input", help="结构化调查 JSON 路径（缺省使用内置小样本）")
-    ap.add_argument("--md-out", default="客户满意度调查.md", help="输出 MD 路径")
-    ap.add_argument("--html-out", default="客户满意度调查.html", help="输出 HTML 路径")
+    ap.add_argument("--out-dir", default=os.getcwd(), help="输出目录（默认当前工作目录）")
+    ap.add_argument("--format", choices=["txt", "md", "all"], default="all", help="输出格式，默认 all（txt+md）")
     args = ap.parse_args()
 
     try:
@@ -253,13 +227,20 @@ def main():
         sys.stderr.write(f"读取输入失败：{e}\n")
         sys.exit(1)
 
-    with open(args.md_out, "w", encoding="utf-8") as f:
-        f.write(build_md(sv))
-    sys.stderr.write(f"MD 已生成：{args.md_out}\n")
+    os.makedirs(args.out_dir, exist_ok=True)
+    date_tag = datetime.now().strftime("%Y%m%d")
+    base = f"客户满意度调查_{date_tag}"
 
-    with open(args.html_out, "w", encoding="utf-8") as f:
-        f.write(build_html(sv))
-    sys.stderr.write(f"HTML 已生成：{args.html_out}\n")
+    if args.format in ("md", "all"):
+        md_path = os.path.join(args.out_dir, base + ".md")
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(build_md(sv))
+        sys.stderr.write(f"MD 已生成：{md_path}\n")
+    if args.format in ("txt", "all"):
+        txt_path = os.path.join(args.out_dir, base + ".txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(build_txt(sv))
+        sys.stderr.write(f"TXT 已生成：{txt_path}\n")
 
 
 if __name__ == "__main__":

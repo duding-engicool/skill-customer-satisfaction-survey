@@ -1,10 +1,10 @@
 # 客户质量满意度调查技能（customer-satisfaction-survey）
 
-> 主色：#C8102E ｜ 范式：混合式（Markdown + HTML 双版）
+> 范式：交互引导式（纯文字版 .txt + Markdown .md）
 > 面向客户质量经理与市场质量的客户满意度 / NPS 调查设计与分析工具。
 
 ## 一句话说明
-产出专业问卷（CSAT/NPS/CES）与量化深度分析报告双版文档——这是"满意度度量"，区别于 VOC 的"痛点挖掘"。
+产出专业问卷（CSAT/NPS/CES）与量化深度分析报告文档（txt+md）——这是"满意度度量"，区别于 VOC 的"痛点挖掘"。
 
 ## 适用角色
 - 客户质量经理
@@ -31,15 +31,15 @@
 ## 文件清单
 - `SKILL.md`：技能主文件
 - `README.md`：本说明
-- `scripts/build_report.py`：调查 JSON → MD + HTML（问卷 + 分析一体双版）
+- `scripts/build_report.py`：调查 JSON → 纯文字版 .txt + Markdown .md（问卷 + 分析一体）
 
 ## 使用方法
 ```bash
-# 内置小样本直接跑通，产出示意双版
+# 内置小样本直接跑通，产出示意 txt+md 双件
 python scripts/build_report.py
 
 # 用自有数据
-python scripts/build_report.py --input survey.json --md-out 客户满意度调查.md --html-out 客户满意度调查.html
+python scripts/build_report.py --input survey.json --out-dir ./输出
 ```
 
 ## 联动技能
