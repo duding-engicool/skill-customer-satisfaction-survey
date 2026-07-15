@@ -2,6 +2,8 @@
 name: customer-satisfaction-survey
 description: 面向客户质量经理与市场质量的客户满意度/NPS调查设计与分析技能；产出专业问卷与深度分析报告文档（txt+md），区别于VOC痛点挖掘。
 version: 1.0.0
+slug: customer-satisfaction-survey
+displayName: 客户质量满意度调查
 ---
 
 # 客户质量满意度调查技能
