@@ -144,3 +144,7 @@ python scripts/build_report.py --input survey.json --out-dir ./输出
 ## 反馈与联系
 
 如对本技能的使用有疑问或改进建议，可联系：engicool@agent.qq.com（仅用于本技能使用反馈）。
+
+## 反馈与问题咨询
+- 本技能的使用反馈、问题咨询、改进建议，请发邮件至：**engicool@agent.qq.com**
+- 该邮箱仅用于本技能的使用反馈与问题咨询，不承接营销或其他无关诉求。
